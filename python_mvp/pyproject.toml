@@ -13,6 +13,6 @@ requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project.scripts]
-# This will create a `dcat` command that runs the CLI
-# Usage after install: `dcat teams`, `dcat products`, etc.
-dcat = "registry.cli:run"
+# This will create a `mesh` command that runs the CLI
+# Usage after install: `mesh teams`, `mesh products`, etc.
+mesh = "registry.cli:main"
