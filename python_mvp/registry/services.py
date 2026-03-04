@@ -10,9 +10,12 @@ class Registry:
 	"""In-memory data registry for the CLI MVP."""
 
 	def __init__(self) -> None:
+		# Internal storage keyed by primary ID
 		self._teams: Dict[int, Team] = {}
 		self._products: Dict[int, DataProduct] = {}
 		self._metadata: Dict[int, MetadataEntry] = {}
+
+		# Simple auto-increment counters (simulate DB primary keys)
 		self._next_team_id = 1
 		self._next_product_id = 1
 		self._next_metadata_id = 1
@@ -73,6 +76,10 @@ class Registry:
 			created_at=datetime.utcnow(),
 		)
 		self._metadata[entry.metadata_id] = entry
+
+		# Maintain bidirectional relationship:
+		# - global metadata registry
+		# - product-local metadata list
 		self._products[data_product_id].metadata.append(entry)
 		self._next_metadata_id += 1
 		return entry
