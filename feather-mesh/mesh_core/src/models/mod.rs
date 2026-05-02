@@ -1,7 +1,5 @@
-pub mod data_product;
-pub mod metadata;
-pub mod team;
+pub mod entities;
+pub mod new;
 
-pub use data_product::DataProduct;
-pub use metadata::Metadata;
-pub use team::Team;
+pub use entities::{DataProduct, DataProductVersion, LineageDependency, Metadata, Team};
+pub use new::{NewDataProduct, NewDataProductVersion, NewLineageDependency, NewMetadata, NewTeam};
