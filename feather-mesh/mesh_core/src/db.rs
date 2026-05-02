@@ -27,43 +27,61 @@ pub fn init_db<P: AsRef<Path>>(path: P) -> Result<Connection> {
     Ok(conn)
 }
 
-fn init_schema(conn: &Connection) -> Result<()> {
+/// Creates the database schema if it does not already exist. This is idempotent and can be safely called on an existing database.
+pub(crate) fn init_schema(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         r#"
         CREATE TABLE IF NOT EXISTS teams (
             team_id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE,
-            description TEXT NOT NULL,
             created_at TEXT NOT NULL DEFAULT (datetime('now'))
         );
 
         CREATE TABLE IF NOT EXISTS data_products (
             product_id INTEGER PRIMARY KEY AUTOINCREMENT,
-            owner_team_id INTEGER NOT NULL,
             name TEXT NOT NULL,
-            description TEXT NOT NULL,
-            data_format TEXT NOT NULL,
-            access_uri TEXT NOT NULL,
-            status TEXT NOT NULL,
-            classification TEXT NOT NULL,
+            description TEXT,
+            owner_team_id INTEGER NOT NULL,
+            intended_use TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY(owner_team_id) REFERENCES teams(team_id) ON DELETE CASCADE
         );
 
-        CREATE TABLE IF NOT EXISTS metadata (
-            metadata_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        CREATE TABLE IF NOT EXISTS data_product_versions (
+            version_id INTEGER PRIMARY KEY AUTOINCREMENT,
             data_product_id INTEGER NOT NULL,
-            namespace TEXT NOT NULL,
-            meta_key TEXT NOT NULL,
-            meta_value TEXT NOT NULL,
-            value_type TEXT NOT NULL,
+            version_label TEXT NOT NULL,
+            asset_type TEXT NOT NULL,
+            source_path TEXT NOT NULL,
+            data_quality TEXT NOT NULL,
+            classification TEXT,
             created_at TEXT NOT NULL DEFAULT (datetime('now')),
             FOREIGN KEY(data_product_id) REFERENCES data_products(product_id) ON DELETE CASCADE
         );
 
+        CREATE TABLE IF NOT EXISTS metadata (
+            metadata_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            data_product_version_id INTEGER NOT NULL,
+            namespace TEXT,
+            meta_key TEXT NOT NULL,
+            meta_value TEXT,
+            value_type TEXT,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY(data_product_version_id) REFERENCES data_product_versions(version_id) ON DELETE CASCADE
+        );
+
+        CREATE TABLE IF NOT EXISTS lineage_dependencies (
+            dependency_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            downstream_version_id INTEGER NOT NULL,
+            upstream_product_uri TEXT NOT NULL,
+            upstream_version TEXT,
+            FOREIGN KEY(downstream_version_id) REFERENCES data_product_versions(version_id) ON DELETE CASCADE
+        );
+
         CREATE INDEX IF NOT EXISTS idx_data_products_owner_team_id ON data_products(owner_team_id);
-        CREATE INDEX IF NOT EXISTS idx_metadata_data_product_id ON metadata(data_product_id);
+        CREATE INDEX IF NOT EXISTS idx_data_product_versions_data_product_id ON data_product_versions(data_product_id);
+        CREATE INDEX IF NOT EXISTS idx_metadata_data_product_version_id ON metadata(data_product_version_id);
+        CREATE INDEX IF NOT EXISTS idx_lineage_dependencies_downstream_version_id ON lineage_dependencies(downstream_version_id);
         "#,
     )?;
 
@@ -105,12 +123,12 @@ mod tests {
 
         let table_count: i32 = conn
             .query_row(
-                "SELECT COUNT(name) FROM sqlite_master WHERE type='table' AND name IN ('teams','data_products','metadata');",
+                "SELECT COUNT(name) FROM sqlite_master WHERE type='table' AND name IN ('teams','data_products','data_product_versions','metadata','lineage_dependencies');",
                 [],
                 |row| row.get(0),
             )
             .expect("Failed to verify tables");
-        assert_eq!(table_count, 3, "All expected tables should exist");
+        assert_eq!(table_count, 5, "All expected tables should exist");
 
         fs::remove_file(&path).ok();
     }
