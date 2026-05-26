@@ -133,19 +133,27 @@ cargo clippy
 ## Project Structure
 
 ```
-project-name/
-│
-├── Cargo.toml        # Project manifest and dependencies
-├── Cargo.lock        # Locked dependency versions
-└── src/
-    └── main.rs       # Application entry point
+feather-mesh/
+├── Cargo.toml
+├── mesh_cli/
+│   ├── Cargo.toml
+│   └── src/
+│       └── main.rs        # CLI entry point
+└── mesh_core/
+    ├── Cargo.toml
+    ├── src/
+    │   ├── lib.rs         # Library exports
+    │   ├── db.rs          # SQLite connection and schema setup
+    │   ├── models/        # Domain data structures
+    │   │   ├── entities/  # Persisted database row models
+    │   │   └── new/       # Insertable NewX models
+    │   ├── repositories/  # SQL queries and object mapping
+    │   └── services/      # CLI-facing business workflows
+    └── tests/
+        └── data/          # Static test fixtures
 ```
 
-If it's a library project:
-
-```
-src/lib.rs
-```
+`models/` keeps domain data structures separate from persistence logic. `repositories/` handles database access, and `services/` exposes business-facing functions intended for callers like `mesh_cli`.
 
 ---
 
